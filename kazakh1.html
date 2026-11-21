@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Наполеон — Император</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07060a;
+    --ink:#e9e1cf;
+    --muted:#9b917d;
+    --gold:#c9a44c;
+    --gold-2:#f1d48a;
+    --blood:#8b1a1a;
+    --blue:#1b2a4a;
+    --bar:9vh;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Cormorant Garamond',serif;
+    font-size:20px;
+    line-height:1.6;
+    overflow-x:hidden;
+    cursor:none;
+  }
+  body.locked{overflow:hidden}
+  a{color:inherit}
+  ::selection{background:var(--gold);color:#000}
+
+  /* ---------- Кинематографические слои ---------- */
+  #embers{position:fixed;inset:0;z-index:1;pointer-events:none}
+  .grain{
+    position:fixed;inset:-50%;z-index:90;pointer-events:none;opacity:.09;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grain 1s steps(6) infinite;
+  }
+  @keyframes grain{
+    0%{transform:translate(0,0)}20%{transform:translate(-5%,3%)}40%{transform:translate(4%,-6%)}
+    60%{transform:translate(-3%,5%)}80%{transform:translate(6%,2%)}100%{transform:translate(0,0)}
+  }
+  .vignette{
+    position:fixed;inset:0;z-index:89;pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.85) 100%);
+  }
+  .scratch{
+    position:fixed;top:0;bottom:0;width:1px;z-index:91;pointer-events:none;
+    background:rgba(255,240,200,.25);opacity:0;
+  }
+  .letterbox{position:fixed;left:0;right:0;height:var(--bar);background:#000;z-index:95;pointer-events:none;transition:height 1.6s cubic-bezier(.7,0,.2,1)}
+  .letterbox.top{top:0}
+  .letterbox.bottom{bottom:0}
+  body.open .letterbox{height:0}
+  body.open.cine .letterbox{height:5vh}
+
+  /* ---------- Курсор ---------- */
+  .cursor{position:fixed;z-index:200;pointer-events:none;width:8px;height:8px;border-radius:50%;background:var(--gold-2);transform:translate(-50%,-50%);mix-blend-mode:difference}
+  .cursor-ring{position:fixed;z-index:199;pointer-events:none;width:42px;height:42px;border:1px solid rgba(201,164,76,.6);border-radius:50%;transform:translate(-50%,-50%);transition:width .3s,height .3s,border-color .3s}
+  .cursor-ring.hover{width:72px;height:72px;border-color:var(--gold-2)}
+  @media (hover:none){body{cursor:auto}.cursor,.cursor-ring{display:none}}
+
+  /* ---------- Интро ---------- */
+  #intro{
+    position:fixed;inset:0;z-index:150;background:#000;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2rem;
+    transition:opacity 1.4s ease, visibility 1.4s;
+  }
+  #intro.gone{opacity:0;visibility:hidden}
+  .countdown{position:relative;width:180px;height:180px}
+  .countdown svg{position:absolute;inset:0}
+  .countdown .num{position:absolute;inset:0;display:grid;place-items:center;font-family:'Cinzel';font-size:5rem;color:var(--gold);}
+  .sweep{transform-origin:90px 90px;animation:sweep 1s linear infinite}
+  @keyframes sweep{to{transform:rotate(360deg)}}
+  .intro-text{font-family:'Cinzel';letter-spacing:.6em;font-size:.8rem;color:var(--muted);text-transform:uppercase;text-align:center;padding:0 16px}
+  #startBtn{
+    font-family:'Cinzel';letter-spacing:.4em;text-transform:uppercase;font-size:.85rem;
+    background:transparent;color:var(--gold-2);border:1px solid var(--gold);padding:1rem 2.4rem;cursor:none;
+    opacity:0;transition:opacity 1s, background .4s, color .4s;
+  }
+  #startBtn.show{opacity:1}
+  #startBtn:hover{background:var(--gold);color:#000}
+
+  /* ---------- Навигация ---------- */
+  nav{
+    position:fixed;top:0;left:0;right:0;z-index:80;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:1.4rem 4vw;
+    font-family:'Cinzel';font-size:.75rem;letter-spacing:.3em;text-transform:uppercase;
+    background:linear-gradient(#000c,transparent);
+    opacity:0;transition:opacity 1s 1s;
+  }
+  body.open nav{opacity:1}
+  nav .logo{color:var(--gold);font-weight:900;font-size:1.1rem;letter-spacing:.2em}
+  nav ul{display:flex;gap:2.2rem;list-style:none}
+  nav a{text-decoration:none;color:var(--muted);transition:color .3s}
+  nav a:hover{color:var(--gold-2)}
+  .sound{background:none;border:1px solid #fff3;color:var(--muted);font:inherit;letter-spacing:.2em;padding:.5rem .9rem;cursor:none}
+  .sound.on{color:var(--gold-2);border-color:var(--gold)}
+  @media(max-width:860px){nav ul{display:none}}
+
+  /* ---------- Hero ---------- */
+  .hero{
+    position:relative;height:100vh;min-height:640px;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;text-align:center;
+  }
+  .sky{
+    position:absolute;inset:-10%;
+    background:
+      radial-gradient(ellipse at 50% 85%, rgba(200,80,20,.55), transparent 55%),
+      radial-gradient(ellipse at 20% 30%, rgba(40,50,90,.6), transparent 60%),
+      linear-gradient(#05050a 0%, #1a1020 45%, #4a1d10 78%, #0a0505 100%);
+  }
+  .sun{
+    position:absolute;left:50%;bottom:22%;width:42vmin;height:42vmin;border-radius:50%;
+    transform:translateX(-50%);
+    background:radial-gradient(circle,#ffd89a 0%,#e46a1c 40%,rgba(160,30,10,.0) 70%);
+    filter:blur(2px);opacity:.85;
+  }
+  .smoke{position:absolute;inset:0;pointer-events:none}
+  .smoke span{
+    position:absolute;bottom:-20%;width:60vmax;height:30vmax;border-radius:50%;
+    background:radial-gradient(ellipse,rgba(30,20,20,.75),transparent 70%);
+    filter:blur(30px);animation:drift linear infinite;
+  }
+  @keyframes drift{from{transform:translateX(-60vw)}to{transform:translateX(120vw)}}
+  .hills{position:absolute;left:0;right:0;bottom:0;width:100%}
+  .silhouette{
+    position:absolute;left:50%;bottom:6%;height:52vh;transform:translateX(-50%);
+    filter:drop-shadow(0 0 30px rgba(255,140,60,.25));
+  }
+  .hero-content{position:relative;z-index:5;padding:0 16px;margin-top:-22vh}
+  .hero .pre{font-family:'Cinzel';letter-spacing:.8em;font-size:.8rem;color:var(--gold);text-transform:uppercase;opacity:0;animation:rise 1.6s 2.2s forwards}
+  .hero h1{
+    font-family:'Cinzel';font-weight:900;
+    font-size:clamp(3rem,11vw,10rem);line-height:.95;letter-spacing:.06em;
+    background:linear-gradient(180deg,#fff6dc 0%,var(--gold-2) 40%,var(--gold) 70%,#6b4f18 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 60px rgba(241,212,138,.15);
+  }
+  .hero h1 span{display:inline-block;opacity:0;transform:translateY(40px) scale(1.1);filter:blur(12px)}
+  body.open .hero h1 span{animation:letter 1.4s cubic-bezier(.2,.7,.2,1) forwards}
+  @keyframes letter{to{opacity:1;transform:none;filter:none}}
+  .hero .sub{font-style:italic;font-size:clamp(1.1rem,2vw,1.6rem);color:#e8d9b8;margin-top:1rem;opacity:0;animation:rise 1.6s 3s forwards}
+  .hero .years{font-family:'Cinzel';letter-spacing:.5em;color:var(--muted);font-size:.9rem;margin-top:1.2rem;opacity:0;animation:rise 1.6s 3.4s forwards}
+  @keyframes rise{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+  .scroll-hint{position:absolute;bottom:6vh;left:50%;transform:translateX(-50%);z-index:6;font-family:'Cinzel';font-size:.65rem;letter-spacing:.5em;color:var(--muted);text-align:center}
+  .scroll-hint i{display:block;width:1px;height:60px;margin:12px auto 0;background:linear-gradient(var(--gold),transparent);animation:line 2s infinite}
+  @keyframes line{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+
+  /* ---------- Общие секции ---------- */
+  section{position:relative;z-index:2}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 5vw}
+  .label{font-family:'Cinzel';letter-spacing:.6em;text-transform:uppercase;color:var(--gold);font-size:.75rem}
+  .title{font-family:'Cinzel';font-weight:600;font-size:clamp(2rem,5vw,4rem);line-height:1.1;margin:.8rem 0 1.5rem}
+  .reveal{opacity:0;transform:translateY(60px);filter:blur(6px);transition:opacity 1.4s cubic-bezier(.2,.7,.2,1),transform 1.4s cubic-bezier(.2,.7,.2,1),filter 1.4s}
+  .reveal.in{opacity:1;transform:none;filter:none}
+  .divider{display:flex;align-items:center;gap:1rem;justify-content:center;margin:0 auto;color:var(--gold);opacity:.7}
+  .divider:before,.divider:after{content:"";height:1px;width:120px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+
+  /* ---------- Пролог ---------- */
+  .prologue{padding:22vh 0 18vh;text-align:center}
+  .prologue p.big{
+    font-size:clamp(1.5rem,3.2vw,2.6rem);font-weight:300;line-height:1.45;max-width:900px;margin:2rem auto;
+  }
+  .prologue p.big em{color:var(--gold-2)}
+  .typed{font-family:'Cinzel';letter-spacing:.3em;color:var(--muted);font-size:.85rem;min-height:1.5em}
+  .typed::after{content:"▍";color:var(--gold);animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  /* ---------- Акты / хронология ---------- */
+  .acts{padding:10vh 0}
+  .act{
+    min-height:90vh;display:grid;grid-template-columns:1fr 1fr;gap:6vw;align-items:center;
+    padding:8vh 0;border-top:1px solid #ffffff10;
+  }
+  .act:nth-child(even) .act-visual{order:2}
+  .act-visual{
+    position:relative;aspect-ratio:4/5;overflow:hidden;
+    border:1px solid #c9a44c33;
+    box-shadow:0 40px 80px -20px #000, inset 0 0 120px #000;
+  }
+  .act-visual .scene{position:absolute;inset:-8%;transition:transform .2s linear}
+  .act-visual .scene svg{width:100%;height:100%;display:block}
+  .act-visual:after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse,transparent 40%,#000c 100%);pointer-events:none}
+  .act-visual .year{
+    position:absolute;right:1.2rem;bottom:.4rem;z-index:3;
+    font-family:'Cinzel';font-weight:900;font-size:clamp(3rem,7vw,6rem);
+    color:transparent;-webkit-text-stroke:1px rgba(241,212,138,.7);
+  }
+  .act-num{font-family:'Cinzel';color:var(--blood);letter-spacing:.4em;font-size:.8rem;text-transform:uppercase}
+  .act h3{font-family:'Cinzel';font-size:clamp(1.8rem,3.4vw,3rem);line-height:1.1;margin:.6rem 0 1.2rem;color:#f3ead4}
+  .act p{color:#cfc4ad;margin-bottom:1rem}
+  .act .facts{display:flex;gap:2rem;margin-top:1.6rem;flex-wrap:wrap}
+  .act .facts div{border-left:1px solid var(--gold);padding-left:1rem}
+  .act .facts b{display:block;font-family:'Cinzel';color:var(--gold-2);font-size:1.4rem}
+  .act .facts small{color:var(--muted);font-size:.85rem;letter-spacing:.05em}
+  @media(max-width:860px){
+    .act{grid-template-columns:1fr;min-height:auto}
+    .act:nth-child(even) .act-visual{order:0}
+    .act-visual{aspect-ratio:16/11}
+  }
+
+  /* ---------- Цитата во весь экран ---------- */
+  .quote-wall{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;
+    background:radial-gradient(ellipse at center,#1a0d08 0%,#000 70%);
+    overflow:hidden;
+  }
+  .quote-wall blockquote{
+    font-size:clamp(2rem,5.5vw,5rem);font-style:italic;font-weight:300;line-height:1.2;max-width:1100px;padding:0 5vw;
+  }
+  .quote-wall blockquote .w{display:inline-block;opacity:.08;transition:opacity .6s,color .6s,text-shadow .6s}
+  .quote-wall blockquote .w.lit{opacity:1;color:#fff4d6;text-shadow:0 0 30px rgba(241,212,138,.35)}
+  .quote-wall cite{display:block;margin-top:2.5rem;font-family:'Cinzel';font-style:normal;letter-spacing:.5em;font-size:.8rem;color:var(--gold)}
+
+  /* ---------- Цифры ---------- */
+  .numbers{padding:18vh 0;text-align:center}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:2rem;margin-top:4rem}
+  .stat{padding:2.5rem 1rem;border:1px solid #c9a44c22;background:linear-gradient(180deg,#ffffff05,transparent);position:relative;overflow:hidden}
+  .stat:before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(241,212,138,.12) 50%,transparent 70%);transform:translateX(-100%);transition:transform 1.2s}
+  .stat:hover:before{transform:translateX(100%)}
+  .stat b{display:block;font-family:'Cinzel';font-size:clamp(2.4rem,5vw,4rem);color:var(--gold-2);line-height:1}
+  .stat span{display:block;margin-top:.8rem;color:var(--muted);font-size:1rem}
+  @media(max-width:860px){.grid4{grid-template-columns:1fr 1fr}}
+
+  /* ---------- Карусель цитат ---------- */
+  .quotes{padding:16vh 0;text-align:center;border-top:1px solid #ffffff10}
+  .q-stage{position:relative;min-height:240px;max-width:900px;margin:3rem auto 2rem}
+  .q{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;opacity:0;transform:scale(.96);filter:blur(8px);transition:all 1.2s cubic-bezier(.2,.7,.2,1)}
+  .q.active{opacity:1;transform:none;filter:none}
+  .q p{font-size:clamp(1.5rem,3vw,2.4rem);font-style:italic;font-weight:300}
+  .q small{margin-top:1.2rem;font-family:'Cinzel';letter-spacing:.4em;color:var(--gold);font-size:.7rem}
+  .dots{display:flex;gap:.8rem;justify-content:center}
+  .dots button{width:36px;height:2px;border:0;background:#ffffff30;cursor:none;transition:background .4s}
+  .dots button.active{background:var(--gold)}
+
+  /* ---------- Финал ---------- */
+  .finale{
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    background:linear-gradient(#000,#0b1020 60%,#000);overflow:hidden;
+  }
+  .island{width:min(520px,80vw);opacity:.9}
+  .finale h2{font-family:'Cinzel';font-size:clamp(2rem,5vw,4rem);margin-top:2rem;letter-spacing:.1em}
+  .finale p{max-width:700px;color:#bdb39f;margin:1.2rem auto;padding:0 16px}
+  .credits{margin-top:4rem;font-family:'Cinzel';font-size:.7rem;letter-spacing:.5em;color:#6f6656}
+  .wave{animation:wave 6s ease-in-out infinite}
+  @keyframes wave{50%{transform:translateX(-20px)}}
+
+  /* ---------- Прогресс «киноплёнки» ---------- */
+  .reel{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:85;width:2px;height:40vh;background:#ffffff15}
+  .reel i{position:absolute;left:0;top:0;width:100%;background:var(--gold);height:0}
+  .reel em{position:absolute;left:-28px;font-family:'Cinzel';font-style:normal;font-size:.6rem;color:var(--muted);letter-spacing:.2em;writing-mode:vertical-rl;top:-70px}
+  @media(max-width:860px){.reel{display:none}}
+
+  /* ---------- Реальные картины ---------- */
+  img[data-wm]{opacity:0;transition:opacity 1.8s ease}
+  img[data-wm].loaded{opacity:1}
+  .hero-img{
+    position:absolute;left:0;top:-10%;width:100%;height:120%;object-fit:cover;object-position:center 25%;
+    filter:sepia(.35) saturate(1.1) contrast(1.15) brightness(.6);
+  }
+  .hero-img.loaded{opacity:.75}
+  .hero-shade{
+    position:absolute;inset:0;pointer-events:none;
+    background:
+      linear-gradient(180deg,rgba(7,6,10,.75) 0%,rgba(7,6,10,.15) 35%,rgba(40,10,5,.35) 70%,var(--bg) 100%),
+      radial-gradient(ellipse at 50% 60%,transparent 30%,rgba(0,0,0,.7) 100%);
+  }
+  .photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:sepia(.3) contrast(1.1) brightness(.78)}
+  .act-visual:hover .photo img{filter:sepia(.1) contrast(1.1) brightness(.95);transition:filter 1s, opacity 1.8s}
+  .credit{
+    position:absolute;left:1rem;top:1rem;z-index:3;max-width:70%;
+    font-family:'Cinzel';font-size:.6rem;letter-spacing:.15em;line-height:1.5;color:#e9e1cfcc;
+    text-shadow:0 1px 6px #000;
+  }
+
+  .gallery{padding:16vh 0;border-top:1px solid #ffffff10}
+  .gal{display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:220px;gap:1rem;margin-top:3rem}
+  .gal figure{position:relative;overflow:hidden;background:#111;cursor:none;border:1px solid #c9a44c22}
+  .gal figure:nth-child(1){grid-column:span 2;grid-row:span 2}
+  .gal figure:nth-child(2){grid-column:span 4;grid-row:span 1}
+  .gal figure:nth-child(3){grid-column:span 2}
+  .gal figure:nth-child(4){grid-column:span 2}
+  .gal figure:nth-child(5){grid-column:span 3}
+  .gal figure:nth-child(6){grid-column:span 3}
+  .gal img{width:100%;height:100%;object-fit:cover;filter:sepia(.3) brightness(.75);transition:transform 1.4s cubic-bezier(.2,.7,.2,1),filter 1s,opacity 1.8s}
+  .gal figure:hover img{transform:scale(1.07);filter:none}
+  .gal figcaption{
+    position:absolute;left:0;right:0;bottom:0;padding:2.2rem 1rem .9rem;
+    background:linear-gradient(transparent,#000d);font-size:.95rem;line-height:1.3;
+  }
+  .gal figcaption small{display:block;font-family:'Cinzel';font-size:.6rem;letter-spacing:.2em;color:var(--gold);margin-top:.3rem}
+  @media(max-width:860px){.gal{grid-template-columns:1fr 1fr;grid-auto-rows:180px}.gal figure{grid-column:span 1!important;grid-row:span 1!important}.gal figure:nth-child(1),.gal figure:nth-child(2){grid-column:span 2!important}}
+
+  #lb{position:fixed;inset:0;z-index:180;background:rgba(0,0,0,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:6vh 16px;opacity:0;visibility:hidden;transition:.5s}
+  #lb.on{opacity:1;visibility:visible}
+  #lb img{max-width:92vw;max-height:78vh;object-fit:contain;box-shadow:0 0 80px #000;border:1px solid #c9a44c44}
+  #lb p{font-style:italic;text-align:center}
+  #lb small{font-family:'Cinzel';letter-spacing:.3em;font-size:.65rem;color:var(--gold)}
+
+  .finale-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:grayscale(.4) brightness(.5)}
+  .finale-bg.loaded{opacity:.35}
+  .finale > *:not(.finale-bg){position:relative;z-index:2}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    .reveal,.hero h1 span,.hero .pre,.hero .sub,.hero .years{opacity:1!important;transform:none!important;filter:none!important}
+  }
+</style>
+</head>
+<body class="locked">
+
+<!-- Кинослои -->
+<canvas id="embers"></canvas>
+<div class="grain"></div>
+<div class="vignette"></div>
+<div class="scratch" id="scratch"></div>
+<div class="letterbox top"></div>
+<div class="letterbox bottom"></div>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="ring"></div>
+
+<!-- Интро с отсчётом плёнки -->
+<div id="intro">
+  <div class="countdown">
+    <svg viewBox="0 0 180 180">
+      <circle cx="90" cy="90" r="84" fill="none" stroke="#c9a44c55" stroke-width="1"/>
+      <circle cx="90" cy="90" r="68" fill="none" stroke="#c9a44c33" stroke-width="1"/>
+      <line x1="0" y1="90" x2="180" y2="90" stroke="#c9a44c33"/>
+      <line x1="90" y1="0" x2="90" y2="180" stroke="#c9a44c33"/>
+      <path class="sweep" d="M90 90 L90 6 A84 84 0 0 1 162 48 Z" fill="#c9a44c22"/>
+    </svg>
+    <div class="num" id="count">3</div>
+  </div>
+  <div class="intro-text">Эпическая история в шести актах</div>
+  <button id="startBtn">Начать сеанс</button>
+</div>
+
+<nav>
+  <div class="logo">N</div>
+  <ul>
+    <li><a href="#prologue">Пролог</a></li>
+    <li><a href="#acts">Акты</a></li>
+    <li><a href="#gallery">Галерея</a></li>
+    <li><a href="#numbers">Империя</a></li>
+    <li><a href="#quotes">Слова</a></li>
+    <li><a href="#finale">Эпилог</a></li>
+  </ul>
+  <button class="sound" id="sound">♪ Звук</button>
+</nav>
+
+<div class="reel"><em>Плёнка</em><i id="reelBar"></i></div>
+
+<!-- HERO -->
+<header class="hero" id="top">
+  <div class="sky" data-speed="0.15"></div>
+  <div class="sun" data-speed="0.3"></div>
+  <div class="smoke">
+    <span style="bottom:5%;animation-duration:60s;animation-delay:-10s"></span>
+    <span style="bottom:15%;animation-duration:80s;animation-delay:-40s;opacity:.7"></span>
+    <span style="bottom:-5%;animation-duration:50s;animation-delay:-25s"></span>
+  </div>
+
+  <!-- Ж.-Л. Давид, «Наполеон на перевале Сен-Бернар», 1801 -->
+  <img class="hero-img" data-wm="David - Napoleon crossing the Alps - Malmaison2.jpg" data-w="1920" data-speed="0.25" alt="Ж.-Л. Давид. Наполеон на перевале Сен-Бернар">
+  <div class="hero-shade"></div>
+
+  <svg class="hills" viewBox="0 0 1440 200" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 140 C200 100 380 160 600 130 C820 100 1000 150 1200 120 C1320 105 1400 120 1440 125 L1440 200 L0 200Z" fill="#0d0607"/>
+    <path d="M0 170 C240 150 480 190 720 170 C960 150 1200 185 1440 165 L1440 200 L0 200Z" fill="#030203"/>
+  </svg>
+
+  <div class="hero-content">
+    <div class="pre">Империя · Слава · Изгнание</div>
+    <h1 id="heroTitle">НАПОЛЕОН</h1>
+    <div class="sub">Человек, который хотел переписать карту мира</div>
+    <div class="years">1769 — 1821</div>
+  </div>
+  <div class="scroll-hint">Листайте<i></i></div>
+</header>
+
+<!-- ПРОЛОГ -->
+<section class="prologue" id="prologue">
+  <div class="wrap">
+    <div class="divider reveal">✦</div>
+    <p class="big reveal">Он родился на маленьком острове, а умер на ещё меньшем. Между ними — <em>шестьдесят сражений</em>, корона, которую он возложил на себя сам, и Европа, которая <em>так и не стала прежней</em>.</p>
+    <div class="typed" id="typed"></div>
+  </div>
+</section>
+
+<!-- АКТЫ -->
+<section class="acts" id="acts">
+  <div class="wrap">
+
+    <article class="act">
+      <div class="act-visual reveal">
+        <div class="scene" data-parallax>
+          <svg viewBox="0 0 400 500" preserveAspectRatio="xMidYMid slice">
+            <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b1a2e"/><stop offset=".6" stop-color="#3a5a7a"/><stop offset="1" stop-color="#d9a35a"/></linearGradient></defs>
+            <rect width="400" height="500" fill="url(#g1)"/>
+            <circle cx="300" cy="330" r="50" fill="#ffd28a" opacity=".8"/>
+            <path d="M0 360 L60 300 L110 330 L170 260 L240 320 L300 290 L400 340 L400 500 L0 500Z" fill="#14202e"/>
+            <path d="M0 400 Q100 380 200 400 T400 395 L400 500 L0 500Z" fill="#0a1220"/>
+            <g fill="#0a1220"><rect x="70" y="330" width="40" height="40"/><path d="M66 332 L90 312 L114 332Z"/><rect x="120" y="345" width="30" height="30"/></g>
+            <g stroke="#ffd28a" stroke-opacity=".3"><line x1="0" y1="430" x2="400" y2="430"/><line x1="40" y1="450" x2="360" y2="450"/></g>
+          </svg>
+        </div>
+        <div class="scene photo" data-parallax><img loading="lazy" data-wm="Napoleon Bonaparte, Lieutenant-Colonel 1792.jpg" alt="Молодой Бонапарт, подполковник корсиканских волонтёров"></div>
+        <div class="credit">А. Филиппото · «Бонапарт — подполковник, 1792»</div>
+        <div class="year">1769</div>
+      </div>
+      <div class="act-text reveal">
+        <div class="act-num">Акт I · Корсика</div>
+        <h3>Мальчик с острова</h3>
+        <p>15 августа 1769 года в Аяччо, у Карло и Летиции Буонапарте, родился второй сын. Корсику только что купила Франция, и юный Наполеоне говорил по-французски с акцентом, над которым смеялись в военной школе Бриенна.</p>
+        <p>Он отвечал книгами: Плутарх, Цезарь, математика, артиллерия. Одиночество стало его первой школой стратегии.</p>
+        <div class="facts"><div><b>9 лет</b><small>уехал во Францию</small></div><div><b>16 лет</b><small>лейтенант артиллерии</small></div></div>
+      </div>
+    </article>
+
+    <article class="act">
+      <div class="act-visual reveal">
+        <div class="scene" data-parallax>
+          <svg viewBox="0 0 400 500" preserveAspectRatio="xMidYMid slice">
+            <defs><radialGradient id="g2" cx=".5" cy=".7" r=".8"><stop offset="0" stop-color="#ff7a2a"/><stop offset=".4" stop-color="#6a1a0c"/><stop offset="1" stop-color="#0a0404"/></radialGradient></defs>
+            <rect width="400" height="500" fill="url(#g2)"/>
+            <g fill="#1a0806" opacity=".85"><circle cx="120" cy="230" r="60"/><circle cx="190" cy="200" r="80"/><circle cx="280" cy="240" r="70"/></g>
+            <path d="M0 370 L40 340 L80 360 L80 300 L120 300 L120 280 L160 280 L160 300 L200 300 L200 360 L260 330 L400 360 L400 500 L0 500Z" fill="#050202"/>
+            <g fill="#ffcf70"><circle cx="90" cy="320" r="3"/><circle cx="240" cy="300" r="4"/><circle cx="330" cy="330" r="2"/></g>
+            <path d="M40 420 L140 400 L150 410 L48 430Z" fill="#000"/><circle cx="55" cy="430" r="16" fill="#000"/>
+          </svg>
+        </div>
+        <div class="scene photo" data-parallax><img loading="lazy" data-wm="Napoleon à Toulon par Edouard Detaille.jpg" alt="Бонапарт под Тулоном"></div>
+        <div class="credit">Э. Детай · «Бонапарт под Тулоном»</div>
+        <div class="year">1793</div>
+      </div>
+      <div class="act-text reveal">
+        <div class="act-num">Акт II · Тулон</div>
+        <h3>Пушки решают всё</h3>
+        <p>Мятежный Тулон удерживают англичане. Безвестный капитан артиллерии предлагает план: захватить форт над гаванью и обстрелять флот. Через несколько дней британские корабли уходят.</p>
+        <p>В 24 года он — бригадный генерал. В 26 — командующий Итальянской армией, которая, голодная и оборванная, разобьёт Австрию.</p>
+        <div class="facts"><div><b>24</b><small>года — генерал</small></div><div><b>1796</b><small>Итальянский поход</small></div></div>
+      </div>
+    </article>
+
+    <article class="act">
+      <div class="act-visual reveal">
+        <div class="scene" data-parallax>
+          <svg viewBox="0 0 400 500" preserveAspectRatio="xMidYMid slice">
+            <defs><linearGradient id="g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0f05"/><stop offset=".5" stop-color="#7a4a1a"/><stop offset="1" stop-color="#e0b070"/></linearGradient></defs>
+            <rect width="400" height="500" fill="url(#g3)"/>
+            <circle cx="200" cy="200" r="70" fill="#ffe2a0" opacity=".5"/>
+            <path d="M200 120 L280 120 L340 230 L260 230Z M40 360 L150 170 L260 360Z" fill="#2a170a" opacity=".9"/>
+            <path d="M220 360 L300 230 L380 360Z" fill="#3a2010"/>
+            <path d="M0 360 Q200 340 400 360 L400 500 L0 500Z" fill="#c08a4a"/>
+            <path d="M0 400 Q200 380 400 410 L400 500 L0 500Z" fill="#8a5a2a"/>
+          </svg>
+        </div>
+        <div class="scene photo" data-parallax><img loading="lazy" data-wm="Bonaparte ante la Esfinge, por Jean-Léon Gérôme.jpg" alt="Бонапарт перед Сфинксом"></div>
+        <div class="credit">Ж.-Л. Жером · «Бонапарт перед Сфинксом»</div>
+        <div class="year">1798</div>
+      </div>
+      <div class="act-text reveal">
+        <div class="act-num">Акт III · Египет и брюмер</div>
+        <h3>«Сорок веков смотрят на вас»</h3>
+        <p>Он ведёт армию к пирамидам вместе со ста шестьюдесятью учёными. Флот уничтожен Нельсоном при Абукире, но экспедиция подарит миру Розеттский камень и египтологию.</p>
+        <p>Вернувшись тайно во Францию, 18 брюмера 1799 года он совершает переворот и становится Первым консулом. Революция обрела хозяина.</p>
+        <div class="facts"><div><b>18</b><small>брюмера</small></div><div><b>1804</b><small>Гражданский кодекс</small></div></div>
+      </div>
+    </article>
+
+    <article class="act">
+      <div class="act-visual reveal">
+        <div class="scene" data-parallax>
+          <svg viewBox="0 0 400 500" preserveAspectRatio="xMidYMid slice">
+            <defs><radialGradient id="g4" cx=".5" cy=".25" r=".9"><stop offset="0" stop-color="#fff1c0"/><stop offset=".3" stop-color="#c9a44c"/><stop offset=".7" stop-color="#3a2a0a"/><stop offset="1" stop-color="#0a0703"/></radialGradient></defs>
+            <rect width="400" height="500" fill="url(#g4)"/>
+            <g stroke="#fff6d0" stroke-opacity=".35">
+              <line x1="200" y1="120" x2="0" y2="0"/><line x1="200" y1="120" x2="400" y2="0"/><line x1="200" y1="120" x2="0" y2="250"/><line x1="200" y1="120" x2="400" y2="250"/>
+            </g>
+            <g fill="#1a1004">
+              <path d="M150 150 L165 110 L185 140 L200 95 L215 140 L235 110 L250 150 Z"/>
+              <rect x="150" y="150" width="100" height="18"/>
+              <path d="M60 500 L60 300 L80 260 L100 300 L100 500Z M300 500 L300 300 L320 260 L340 300 L340 500Z"/>
+              <path d="M150 500 L170 300 L230 300 L250 500Z"/>
+            </g>
+            <text x="200" y="420" text-anchor="middle" font-family="Cinzel" font-size="60" fill="#c9a44c" opacity=".7">N</text>
+          </svg>
+        </div>
+        <div class="scene photo" data-parallax><img loading="lazy" data-wm="Jacques-Louis David - The Coronation of Napoleon (1805-1807).jpg" data-w="1920" style="object-position:48% center" alt="Коронация Наполеона"></div>
+        <div class="credit">Ж.-Л. Давид · «Коронация Наполеона», 1805–1807</div>
+        <div class="year">1805</div>
+      </div>
+      <div class="act-text reveal">
+        <div class="act-num">Акт IV · Корона и Аустерлиц</div>
+        <h3>Солнце Аустерлица</h3>
+        <p>2 декабря 1804 года в соборе Парижской Богоматери он берёт корону из рук папы и возлагает её на себя сам. Ровно через год, под Аустерлицем, утреннее солнце пробивается сквозь туман — и армии двух императоров, русского и австрийского, разбиты.</p>
+        <p>Европа от Лиссабона до Варшавы живёт по его воле, его кодексу и его меркам.</p>
+        <div class="facts"><div><b>2.XII</b><small>коронация и Аустерлиц</small></div><div><b>~70 млн</b><small>под влиянием империи</small></div></div>
+      </div>
+    </article>
+
+    <article class="act">
+      <div class="act-visual reveal">
+        <div class="scene" data-parallax>
+          <svg viewBox="0 0 400 500" preserveAspectRatio="xMidYMid slice">
+            <defs><linearGradient id="g5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a0505"/><stop offset=".5" stop-color="#a03010"/><stop offset=".75" stop-color="#ff8a30"/><stop offset="1" stop-color="#200808"/></linearGradient></defs>
+            <rect width="400" height="500" fill="url(#g5)"/>
+            <g fill="#0a0303">
+              <path d="M60 380 L60 260 C60 230 90 220 90 190 C90 220 120 230 120 260 L120 380Z"/>
+              <path d="M150 380 L150 230 C150 190 200 175 200 130 C200 175 250 190 250 230 L250 380Z"/>
+              <path d="M280 380 L280 270 C280 245 305 235 305 210 C305 235 330 245 330 270 L330 380Z"/>
+              <rect x="0" y="370" width="400" height="130"/>
+            </g>
+            <g fill="#fff" opacity=".7"><circle cx="40" cy="60" r="1.5"/><circle cx="120" cy="30" r="1"/><circle cx="260" cy="80" r="1.5"/><circle cx="350" cy="40" r="1"/><circle cx="200" cy="100" r="1"/></g>
+            <path d="M0 440 L400 430 L400 500 L0 500Z" fill="#e8e8f0" opacity=".85"/>
+          </svg>
+        </div>
+        <div class="scene photo" data-parallax><img loading="lazy" data-wm="Napoleons retreat from moscow.jpg" alt="Отступление Наполеона из Москвы"></div>
+        <div class="credit">А. Нортен · «Отступление Наполеона из Москвы», 1851</div>
+        <div class="year">1812</div>
+      </div>
+      <div class="act-text reveal">
+        <div class="act-num">Акт V · Россия</div>
+        <h3>Пожар и снег</h3>
+        <p>Великая армия — около 600 тысяч человек — переходит Неман. Бородино, 7 сентября: одно из самых кровопролитных сражений столетия. Он входит в Москву, но город пуст и через день охвачен огнём.</p>
+        <p>Отступление по снегу превращает армию в тени. Через Березину переходит лишь малая часть. «От великого до смешного — один шаг», — скажет он.</p>
+        <div class="facts"><div><b>600 000</b><small>перешли Неман</small></div><div><b>Березина</b><small>ноябрь 1812</small></div></div>
+      </div>
+    </article>
+
+    <article class="act">
+      <div class="act-visual reveal">
+        <div class="scene" data-parallax>
+          <svg viewBox="0 0 400 500" preserveAspectRatio="xMidYMid slice">
+            <defs><linearGradient id="g6" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#202630"/><stop offset=".6" stop-color="#5a5a60"/><stop offset="1" stop-color="#1a1410"/></linearGradient></defs>
+            <rect width="400" height="500" fill="url(#g6)"/>
+            <g fill="#2a2a30" opacity=".8"><ellipse cx="100" cy="150" rx="140" ry="40"/><ellipse cx="300" cy="110" rx="160" ry="45"/></g>
+            <path d="M0 360 Q120 320 220 350 T400 340 L400 500 L0 500Z" fill="#14100c"/>
+            <g stroke="#0a0806" stroke-width="3"><line x1="80" y1="360" x2="80" y2="250"/><line x1="320" y1="345" x2="320" y2="240"/></g>
+            <path d="M80 250 L130 262 L80 278Z" fill="#3a1010"/><path d="M320 240 L370 252 L320 268Z" fill="#1a2a4a"/>
+            <path d="M140 500 L180 410 L190 412 L160 500Z" fill="#000"/>
+          </svg>
+        </div>
+        <div class="scene photo" data-parallax><img loading="lazy" data-wm="Battle of Waterloo 1815.PNG" alt="Битва при Ватерлоо"></div>
+        <div class="credit">У. Сэдлер · «Битва при Ватерлоо»</div>
+        <div class="year">1815</div>
+      </div>
+      <div class="act-text reveal">
+        <div class="act-num">Акт VI · Ватерлоо</div>
+        <h3>Сто дней</h3>
+        <p>После Лейпцига — «битвы народов» — следует отречение и ссылка на Эльбу. Но в марте 1815 года он высаживается во Франции, и полки, посланные его арестовать, переходят на его сторону.</p>
+        <p>18 июня у бельгийской деревни Ватерлоо Веллингтон и Блюхер ставят точку. Старая гвардия отступает впервые.</p>
+        <div class="facts"><div><b>100</b><small>дней второго правления</small></div><div><b>18.VI</b><small>последняя битва</small></div></div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ЦИТАТА -->
+<section class="quote-wall" id="wall">
+  <div>
+    <blockquote id="bigQuote">Невозможно — это слово из словаря глупцов.</blockquote>
+    <cite>— Наполеон Бонапарт</cite>
+  </div>
+</section>
+
+<!-- ГАЛЕРЕЯ -->
+<section class="gallery" id="gallery">
+  <div class="wrap">
+    <div class="label reveal">Галерея</div>
+    <h2 class="title reveal">Эпоха на холстах</h2>
+    <div class="gal reveal">
+      <figure data-wm="Jacques-Louis David - The Emperor Napoleon in His Study at the Tuileries - Google Art Project.jpg">
+        <img loading="lazy" data-wm="Jacques-Louis David - The Emperor Napoleon in His Study at the Tuileries - Google Art Project.jpg" alt="">
+        <figcaption>Император в кабинете Тюильри<small>Ж.-Л. Давид · 1812</small></figcaption>
+      </figure>
+      <figure data-wm="La bataille d'Austerlitz. 2 decembre 1805 (François Gérard).jpg">
+        <img loading="lazy" data-wm="La bataille d'Austerlitz. 2 decembre 1805 (François Gérard).jpg" data-w="1600" alt="">
+        <figcaption>Битва при Аустерлице<small>Ф. Жерар · 1810</small></figcaption>
+      </figure>
+      <figure data-wm="1801 Antoine-Jean Gros - Bonaparte on the Bridge at Arcole.jpg">
+        <img loading="lazy" data-wm="1801 Antoine-Jean Gros - Bonaparte on the Bridge at Arcole.jpg" alt="">
+        <figcaption>Бонапарт на Аркольском мосту<small>А.-Ж. Гро</small></figcaption>
+      </figure>
+      <figure data-wm="David - Napoleon crossing the Alps - Malmaison2.jpg">
+        <img loading="lazy" data-wm="David - Napoleon crossing the Alps - Malmaison2.jpg" alt="">
+        <figcaption>Переход через Альпы<small>Ж.-Л. Давид · 1801</small></figcaption>
+      </figure>
+      <figure data-wm="Vereshchagin Napoleon near Borodino.jpg">
+        <img loading="lazy" data-wm="Vereshchagin Napoleon near Borodino.jpg" alt="">
+        <figcaption>Наполеон на Бородинских высотах<small>В. Верещагин · 1897</small></figcaption>
+      </figure>
+      <figure data-wm="Bouchot - Le general Bonaparte au Conseil des Cinq-Cents.jpg">
+        <img loading="lazy" data-wm="Bouchot - Le general Bonaparte au Conseil des Cinq-Cents.jpg" alt="">
+        <figcaption>18 брюмера: Бонапарт в Совете пятисот<small>Ф. Бушо · 1840</small></figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<div id="lb"><img alt=""><p></p><small>Нажмите, чтобы закрыть</small></div>
+
+<!-- ЦИФРЫ -->
+<section class="numbers" id="numbers">
+  <div class="wrap">
+    <div class="label reveal">Наследие</div>
+    <h2 class="title reveal">Империя в цифрах</h2>
+    <div class="grid4">
+      <div class="stat reveal"><b data-count="60">0</b><span>сражений под его командованием</span></div>
+      <div class="stat reveal"><b data-count="2281">0</b><span>статья Гражданского кодекса</span></div>
+      <div class="stat reveal"><b data-count="130">0</b><span>департаментов империи в 1811</span></div>
+      <div class="stat reveal"><b data-count="52">0</b><span>года жизни</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ЦИТАТЫ -->
+<section class="quotes" id="quotes">
+  <div class="wrap">
+    <div class="label reveal">Голос эпохи</div>
+    <div class="q-stage">
+      <div class="q active"><p>«Победа принадлежит самым настойчивым.»</p><small>Наполеон</small></div>
+      <div class="q"><p>«От великого до смешного — один шаг.»</p><small>Варшава, 1812</small></div>
+      <div class="q"><p>«Армия марширует, пока сыт её желудок.»</p><small>приписывается Наполеону</small></div>
+      <div class="q"><p>«Моя настоящая слава — не сорок выигранных сражений, а мой Гражданский кодекс.»</p><small>остров Святой Елены</small></div>
+      <div class="q"><p>«Плох тот солдат, который не мечтает стать генералом.»</p><small>приписывается Наполеону</small></div>
+    </div>
+    <div class="dots" id="dots"></div>
+  </div>
+</section>
+
+<!-- ЭПИЛОГ -->
+<section class="finale" id="finale">
+  <img class="finale-bg" loading="lazy" data-wm="Napoleon sainthelene.jpg" data-w="1600" alt="">
+  <svg class="island reveal" viewBox="0 0 520 220" aria-hidden="true">
+    <circle cx="380" cy="60" r="26" fill="#e8e3d0" opacity=".85"/>
+    <path d="M150 150 C180 90 220 70 260 80 C300 60 340 90 370 150Z" fill="#0f1420"/>
+    <g class="wave" fill="none" stroke="#c9a44c" stroke-opacity=".4">
+      <path d="M0 160 Q40 150 80 160 T160 160 T240 160 T320 160 T400 160 T480 160 T560 160"/>
+      <path d="M0 180 Q40 170 80 180 T160 180 T240 180 T320 180 T400 180 T480 180 T560 180" stroke-opacity=".25"/>
+    </g>
+    <path d="M370 66 Q360 140 365 210" stroke="#e8e3d0" stroke-opacity=".15" stroke-width="30" fill="none"/>
+  </svg>
+  <div class="label reveal">Эпилог · Святая Елена</div>
+  <h2 class="reveal">5 мая 1821</h2>
+  <p class="reveal">На скале посреди Атлантики, в двух тысячах километров от ближайшего материка, он диктует мемуары и смотрит на океан. Последние слова, по воспоминаниям свидетелей: «Франция… армия… Жозефина».</p>
+  <p class="reveal">В 1840 году его прах вернётся в Париж, под купол Дома инвалидов — туда, куда до сих пор приходят люди со всего мира.</p>
+  <div class="credits reveal">Конец · Fin</div>
+</section>
+
+<script>
+/* ================= КАРТИНЫ (Wikimedia Commons, общественное достояние) ================= */
+const WM = (name, w) => 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(name) + '?width=' + (w || 1200);
+document.querySelectorAll('img[data-wm]').forEach(img => {
+  img.onload = () => img.classList.add('loaded');
+  img.onerror = () => img.remove();          // если картинка не загрузилась — остаётся рисованная сцена
+  img.src = WM(img.dataset.wm, img.dataset.w);
+});
+
+/* Лайтбокс галереи */
+const lb = document.getElementById('lb');
+document.querySelectorAll('.gal figure').forEach(f => {
+  f.addEventListener('click', () => {
+    lb.querySelector('img').src = WM(f.dataset.wm, 2000);
+    lb.querySelector('p').innerHTML = f.querySelector('figcaption').innerHTML;
+    lb.classList.add('on');
+  });
+});
+lb.addEventListener('click', () => lb.classList.remove('on'));
+addEventListener('keydown', e => { if (e.key === 'Escape') lb.classList.remove('on'); });
+
+/* ================= ИНТРО ================= */
+const intro = document.getElementById('intro');
+const countEl = document.getElementById('count');
+const startBtn = document.getElementById('startBtn');
+let n = 3;
+const cd = setInterval(() => {
+  n--;
+  if (n > 0) countEl.textContent = n;
+  else { clearInterval(cd); countEl.textContent = 'N'; startBtn.classList.add('show'); }
+}, 1000);
+
+function openFilm(withSound){
+  intro.classList.add('gone');
+  document.body.classList.add('open');
+  document.body.classList.remove('locked');
+  if (withSound) toggleSound(true);
+  setTimeout(typeLine, 2000);
+}
+startBtn.addEventListener('click', () => openFilm(true));
+
+/* Буквы заголовка — по одной */
+const ht = document.getElementById('heroTitle');
+ht.innerHTML = [...ht.textContent].map((c,i)=>`<span style="animation-delay:${1.6+i*.12}s">${c}</span>`).join('');
+
+/* ================= КУРСОР ================= */
+const cur = document.getElementById('cursor'), ring = document.getElementById('ring');
+let mx = innerWidth/2, my = innerHeight/2, rx = mx, ry = my;
+addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; cur.style.left = mx+'px'; cur.style.top = my+'px'; });
+(function loopRing(){ rx += (mx-rx)*.15; ry += (my-ry)*.15; ring.style.left = rx+'px'; ring.style.top = ry+'px'; requestAnimationFrame(loopRing); })();
+document.querySelectorAll('a,button,.stat,.act-visual,.gal figure,#lb').forEach(el=>{
+  el.addEventListener('mouseenter',()=>ring.classList.add('hover'));
+  el.addEventListener('mouseleave',()=>ring.classList.remove('hover'));
+});
+
+/* ================= УГЛИ / ИСКРЫ ================= */
+const cv = document.getElementById('embers'), ctx = cv.getContext('2d');
+let W, H, parts = [];
+function resize(){ W = cv.width = innerWidth; H = cv.height = innerHeight; }
+resize(); addEventListener('resize', resize);
+function spawn(){
+  return { x: Math.random()*W, y: H + Math.random()*100, r: Math.random()*2+.4,
+           vy: -(Math.random()*.8+.3), vx: (Math.random()-.5)*.4, life: 0, max: 400+Math.random()*400,
+           hue: 20+Math.random()*25, wob: Math.random()*Math.PI*2 };
+}
+for (let i=0;i<90;i++){ const p = spawn(); p.y = Math.random()*H; parts.push(p); }
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of parts){
+    p.life++; p.wob += .02;
+    p.x += p.vx + Math.sin(p.wob)*.3; p.y += p.vy;
+    const a = Math.max(0, Math.sin(Math.PI * p.life / p.max)) * .8;
+    const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*4);
+    g.addColorStop(0,`hsla(${p.hue},100%,70%,${a})`);
+    g.addColorStop(1,`hsla(${p.hue},100%,50%,0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x,p.y,p.r*4,0,Math.PI*2); ctx.fill();
+    if (p.life > p.max || p.y < -20) Object.assign(p, spawn());
+  }
+  requestAnimationFrame(draw);
+}
+draw();
+
+/* Царапины плёнки */
+const scratch = document.getElementById('scratch');
+setInterval(()=>{
+  if (Math.random() < .35){
+    scratch.style.left = Math.random()*100 + 'vw';
+    scratch.style.opacity = .6;
+    setTimeout(()=> scratch.style.opacity = 0, 80 + Math.random()*120);
+  }
+}, 700);
+
+/* ================= ПАРАЛЛАКС + ПРОГРЕСС ================= */
+const speedEls = document.querySelectorAll('[data-speed]');
+const scenes = document.querySelectorAll('[data-parallax]');
+const reelBar = document.getElementById('reelBar');
+function onScroll(){
+  const y = scrollY;
+  speedEls.forEach(el => {
+    const s = +el.dataset.speed;
+    const base = el.classList.contains('sun') || el.classList.contains('silhouette') ? 'translateX(-50%) ' : '';
+    el.style.transform = base + `translateY(${y*s}px)`;
+  });
+  scenes.forEach(sc => {
+    const r = sc.parentElement.getBoundingClientRect();
+    const k = (r.top + r.height/2 - innerHeight/2) / innerHeight;
+    sc.style.transform = `translateY(${k*-40}px) scale(1.05)`;
+  });
+  const max = document.documentElement.scrollHeight - innerHeight;
+  reelBar.style.height = (y/max*100) + '%';
+  document.body.classList.toggle('cine', y > innerHeight*.6);
+  litQuote();
+}
+addEventListener('scroll', onScroll, {passive:true});
+
+/* ================= ПОЯВЛЕНИЕ ================= */
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting){
+      e.target.classList.add('in');
+      const c = e.target.querySelector('[data-count]');
+      if (c && !c.done){ c.done = true; countUp(c); }
+      io.unobserve(e.target);
+    }
+  });
+}, {threshold:.2});
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+function countUp(el){
+  const target = +el.dataset.count, t0 = performance.now(), dur = 2200;
+  (function step(t){
+    const p = Math.min(1,(t-t0)/dur), e = 1 - Math.pow(1-p,4);
+    el.textContent = Math.round(target*e).toLocaleString('ru-RU');
+    if (p < 1) requestAnimationFrame(step);
+  })(t0);
+}
+
+/* ================= ПЕЧАТНАЯ СТРОКА ================= */
+const lines = ['Корсика · Тулон · Египет · Аустерлиц · Москва · Ватерлоо · Святая Елена'];
+function typeLine(){
+  const el = document.getElementById('typed'); let i = 0; const s = lines[0];
+  (function t(){ el.textContent = s.slice(0, ++i); if (i < s.length) setTimeout(t, 55); })();
+}
+
+/* ================= ЦИТАТА, ЗАГОРАЮЩАЯСЯ ПО СЛОВАМ ================= */
+const bq = document.getElementById('bigQuote');
+bq.innerHTML = bq.textContent.split(' ').map(w=>`<span class="w">${w}</span>`).join(' ');
+const words = bq.querySelectorAll('.w');
+const wall = document.getElementById('wall');
+function litQuote(){
+  const r = wall.getBoundingClientRect();
+  const p = Math.min(1, Math.max(0, (innerHeight - r.top) / (r.height + innerHeight*.2)));
+  const k = Math.floor(p * words.length * 1.6);
+  words.forEach((w,i)=> w.classList.toggle('lit', i < k));
+}
+
+/* ================= КАРУСЕЛЬ ================= */
+const qs = document.querySelectorAll('.q'), dots = document.getElementById('dots');
+let qi = 0, qTimer;
+qs.forEach((_,i)=>{
+  const b = document.createElement('button');
+  b.setAttribute('aria-label','Цитата '+(i+1));
+  if (!i) b.classList.add('active');
+  b.onclick = ()=>{ show(i); restart(); };
+  b.addEventListener('mouseenter',()=>ring.classList.add('hover'));
+  b.addEventListener('mouseleave',()=>ring.classList.remove('hover'));
+  dots.appendChild(b);
+});
+function show(i){
+  qs[qi].classList.remove('active'); dots.children[qi].classList.remove('active');
+  qi = i; qs[qi].classList.add('active'); dots.children[qi].classList.add('active');
+}
+function restart(){ clearInterval(qTimer); qTimer = setInterval(()=>show((qi+1)%qs.length), 5500); }
+restart();
+
+/* ================= ЗВУК (синтез, без файлов) ================= */
+let actx, master, playing = false, drumTimer;
+const soundBtn = document.getElementById('sound');
+function initAudio(){
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  master = actx.createGain(); master.gain.value = 0; master.connect(actx.destination);
+  // мрачный оркестровый дрон: ре минор
+  [73.42, 110, 146.83, 174.61, 220].forEach((f,i)=>{
+    const o = actx.createOscillator(), g = actx.createGain(), lf = actx.createOscillator(), lg = actx.createGain();
+    o.type = i < 2 ? 'sawtooth' : 'triangle'; o.frequency.value = f; o.detune.value = (Math.random()-.5)*12;
+    const flt = actx.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 600;
+    g.gain.value = i < 2 ? .05 : .035;
+    lf.frequency.value = .05 + Math.random()*.1; lg.gain.value = .02; lf.connect(lg); lg.connect(g.gain);
+    o.connect(flt); flt.connect(g); g.connect(master); o.start(); lf.start();
+  });
+}
+function drum(){
+  const t = actx.currentTime;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(38, t+.5);
+  g.gain.setValueAtTime(.5, t); g.gain.exponentialRampToValueAtTime(.001, t+1.2);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+1.3);
+}
+function toggleSound(force){
+  if (!actx) initAudio();
+  playing = force === true ? true : !playing;
+  if (actx.state === 'suspended') actx.resume();
+  master.gain.cancelScheduledValues(actx.currentTime);
+  master.gain.linearRampToValueAtTime(playing ? .6 : 0, actx.currentTime + 2);
+  clearInterval(drumTimer);
+  if (playing){ drum(); drumTimer = setInterval(()=>{ drum(); setTimeout(drum, 450); }, 3200); }
+  soundBtn.classList.toggle('on', playing);
+  soundBtn.textContent = playing ? '♪ Звук вкл' : '♪ Звук';
+}
+soundBtn.addEventListener('click', ()=>toggleSound());
+
+onScroll();
+</script>
+</body>
+</html>
